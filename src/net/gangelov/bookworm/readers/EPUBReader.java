@@ -18,16 +18,27 @@ import java.util.regex.Pattern;
 
 public class EPUBReader implements IBookReader {
     private final InputStream fileStream;
+    private Book book;
 
-    public EPUBReader(InputStream fileStream) {
+    public EPUBReader(InputStream fileStream) throws IOException {
         this.fileStream = fileStream;
+        readBook();
+    }
+
+    private void readBook() throws IOException {
+        EpubReader epubReader = new EpubReader();
+        Book book = epubReader.readEpub(fileStream);
+
+        this.book = book;
+    }
+
+    @Override
+    public String getTitle() {
+        return book.getTitle();
     }
 
     @Override
     public String getString() throws Exception {
-        EpubReader epubReader = new EpubReader();
-
-        Book book = epubReader.readEpub(fileStream);
         Spine spine = book.getSpine();
 
         StringBuilder content = new StringBuilder();
@@ -65,7 +76,7 @@ public class EPUBReader implements IBookReader {
             String text = scanner.next();
             int closePos = text.indexOf('>');
 
-            String tag = text.substring(0, closePos).split(" ")[0];
+            String tag = closePos >= 0 ? text.substring(0, closePos).split(" ")[0] : text;
             if (tag.equalsIgnoreCase("style") || tag.equalsIgnoreCase("script") || tag.equalsIgnoreCase("title")) {
                 // Ignore contents
                 continue;

@@ -7,10 +7,10 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="org.apache.lucene:lucene-core:4.9.0" level="project" />
-    <orderEntry type="library" name="org.apache.commons:com.springsource.org.apache.commons.io:1.4.0" level="project" />
-    <orderEntry type="library" name="org.apache.lucene:lucene-analyzers-common:4.9.0" level="project" />
     <orderEntry type="library" name="epublib" level="project" />
+    <orderEntry type="library" name="org.apache.lucene:lucene-core:4.9.01" level="project" />
+    <orderEntry type="library" name="org.apache.lucene:lucene-analyzers-common:4.9.01" level="project" />
     <orderEntry type="library" name="org.apache.commons:com.springsource.org.apache.commons.lang:2.6.0" level="project" />
+    <orderEntry type="library" name="org.apache.commons:com.springsource.org.apache.commons.io:1.4.0" level="project" />
   </component>
 </module>

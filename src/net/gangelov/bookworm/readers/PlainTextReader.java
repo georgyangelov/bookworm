@@ -7,10 +7,17 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public class PlainTextReader implements IBookReader {
+    private final String title;
     private final InputStream stream;
 
-    public PlainTextReader(InputStream stream) {
+    public PlainTextReader(String title, InputStream stream) {
+        this.title = title;
         this.stream = stream;
+    }
+
+    @Override
+    public String getTitle() {
+        return title;
     }
 
     @Override
