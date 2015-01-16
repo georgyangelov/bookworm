@@ -16,7 +16,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class FrequencyExtractor {
-    public Map<String, Integer> extractFrom(String text) throws IOException {
+    public static Map<String, Integer> extractFrom(String text) throws IOException {
         Map<String, Integer> counts = new HashMap<>();
         Analyzer analyzer = new ClassicAnalyzer(Version.LUCENE_4_9);
         TokenStream tokenStream = //new PorterStemFilter(

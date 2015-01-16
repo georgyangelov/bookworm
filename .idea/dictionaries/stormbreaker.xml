@@ -5,6 +5,7 @@
       <w>multinomial</w>
       <w>nbsp</w>
       <w>occurances</w>
+      <w>tfidf</w>
     </words>
   </dictionary>
 </component>

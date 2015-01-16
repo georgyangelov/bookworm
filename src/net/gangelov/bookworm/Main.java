@@ -1,5 +1,6 @@
 package net.gangelov.bookworm;
 
+import net.gangelov.bookworm.classifiers.MultinomialNaiveBayes;
 import net.gangelov.bookworm.readers.EPUBReader;
 import net.gangelov.bookworm.storage.WordCountSerializer;
 import net.gangelov.bookworm.words.FrequencyExtractor;
@@ -7,28 +8,100 @@ import org.apache.commons.io.FileUtils;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-class Pair<A, B> {
-    public final A first;
-    public final B second;
-
-    public Pair(A a, B b) {
-        first = a;
-        second = b;
-    }
-}
-
 public class Main {
+    static final String[] genres = new String[] { "cookbooks", "fantasy", "mystery", "romance", "science fiction" };
+
     public static void main(String[] args) throws Exception {
-        readWordCountBinFiles();
+//        generateWordBookCounts();
+//        readWordBookCounts();
 //        generateWordCountBinFiles();
+//        readWordCountBinFiles();
+        trainClassifier();
+    }
+
+    private static void trainClassifier() throws IOException {
+        Map<String, Integer> wordBookCounts = readWordBookCounts();
+
+        MultinomialNaiveBayes classifier = new MultinomialNaiveBayes(Arrays.asList(genres), wordBookCounts, 1050);
+
+        final File directory = new File("F:\\books");
+        final File[] subdirectories = directory.listFiles(File::isDirectory);
+
+        for (File genreDirectory : subdirectories) {
+            trainClassifierFromDirectory(classifier, genreDirectory.getName(), genreDirectory);
+        }
+
+        List<Map.Entry<String, Double>> fantasyTopRelevantWords = classifier.genreWordCounts.get("fantasy").entrySet().stream()
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                .collect(Collectors.toList());
+    }
+
+    private static void trainClassifierFromDirectory(MultinomialNaiveBayes classifier, String genre, File directory) {
+        @SuppressWarnings("unchecked")
+        Collection<File> bookFiles = FileUtils.listFiles(
+                directory,
+                new String[] { "epub" },
+                true
+        );
+
+        bookFiles.forEach((bookFile) -> {
+            System.out.println("Processing " + bookFile.getName());
+
+            try {
+                classifier.train(Book.fromEPUB(bookFile.getAbsolutePath()), genre);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    private static Map<String, Integer> readWordBookCounts() throws IOException {
+        Map<String, Integer> wordBookCounts = WordCountSerializer.deserialize(new BufferedInputStream(
+                new FileInputStream("wordBookCounts.bin")
+        ));
+
+        System.out.println("Word book counts read");
+
+        return wordBookCounts;
+    }
+
+    private static void generateWordBookCounts() throws IOException {
+        final File directory = new File("F:\\books");
+
+        File[] subdirectories = directory.listFiles(File::isDirectory);
+
+        final Map<String, Integer> wordBookCounts = new HashMap<>();
+
+        for (File genreDirectory : subdirectories) {
+            Map<String, Integer> wordCounts = countWordsInDirectory(genreDirectory.getAbsolutePath(), (file) -> {
+                Map<String, Integer> counts = countWords(file);
+
+                counts.replaceAll((k, v) -> 1);
+
+                return counts;
+            });
+
+            wordCounts.forEach((word, wordCount) -> {
+                wordBookCounts.merge(word, wordCount, (a, b) -> a + b);
+            });
+        }
+
+        BufferedOutputStream out = new BufferedOutputStream(
+                new FileOutputStream("wordBookCounts.bin")
+        );
+
+        WordCountSerializer.serialize(wordBookCounts, out);
+
+        out.flush();
+        out.close();
     }
 
     private static void readWordCountBinFiles() throws IOException {
         Map<String, Map<String, Integer>> genreWordCounts = new HashMap<>();
-
-        String[] genres = new String[] { "cookbooks", "fantasy", "mystery", "romance", "science fiction" };
 
         for (String genre : genres) {
             Map<String, Integer> wordCounts = WordCountSerializer.deserialize(new BufferedInputStream(
@@ -47,7 +120,7 @@ public class Main {
         File[] subdirectories = directory.listFiles(File::isDirectory);
 
         for (File genreDirectory : subdirectories) {
-            Map<String, Integer> wordCounts = countWordsInDirectory(genreDirectory.getAbsolutePath());
+            Map<String, Integer> wordCounts = countWordsInDirectory(genreDirectory.getAbsolutePath(), Main::countWords);
             BufferedOutputStream out = new BufferedOutputStream(
                     new FileOutputStream(genreDirectory.getName() + ".bin")
             );
@@ -60,7 +133,7 @@ public class Main {
         }
     }
 
-    private static Map<String, Integer> countWordsInDirectory(String directory) {
+    private static Map<String, Integer> countWordsInDirectory(String directory, Function<String, Map<String, Integer>> mapper) {
         @SuppressWarnings("unchecked")
         Collection<File> bookFiles = FileUtils.listFiles(
                 new File(directory),
@@ -68,20 +141,12 @@ public class Main {
                 true
         );
 
-        Map<String, Integer> bookCounts = bookFiles.stream().limit(100).map((bookFile) -> {
+        Map<String, Integer> bookCounts = bookFiles.stream().map((bookFile) -> {
             String bookName = bookFile.getName().replaceAll(",", "");
             System.out.println("Processing " + bookName);
 
-            Map<String, Integer> wordCounts = null;
-
-            try {
-                wordCounts = countWords(bookFile.getAbsolutePath());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-
-            return wordCounts;
-        }).reduce(new HashMap<String, Integer>(), (accumulator, words) -> {
+            return mapper.apply(bookFile.getAbsolutePath());
+        }).reduce(new HashMap<>(), (accumulator, words) -> {
             for (Map.Entry<String, Integer> word : words.entrySet()) {
                 accumulator.merge(word.getKey(), word.getValue(), (a, b) -> a + b);
             }
@@ -92,13 +157,18 @@ public class Main {
         return bookCounts;
     }
 
-    private static Map<String, Integer> countWords(String bookPath) throws Exception {
-        EPUBReader reader = new EPUBReader(new BufferedInputStream(new FileInputStream(bookPath)));
+    private static Map<String, Integer> countWords(String bookPath) {
+        try {
+            EPUBReader reader = new EPUBReader(new BufferedInputStream(new FileInputStream(bookPath)));
 
-        String content = reader.getString();
-        FrequencyExtractor frequencyExtractor = new FrequencyExtractor();
+            String content = reader.getString();
+            FrequencyExtractor frequencyExtractor = new FrequencyExtractor();
 
-        return frequencyExtractor.extractFrom(content);
+            return frequencyExtractor.extractFrom(content);
+        } catch(Exception e) {
+            e.printStackTrace();
+            return new HashMap<>();
+        }
     }
 
 //    private static <K, V extends Comparable<V>> List<Map.Entry<K, V>> sortedEntryListByValue(Set<Map.Entry<K, V>> entries) {
