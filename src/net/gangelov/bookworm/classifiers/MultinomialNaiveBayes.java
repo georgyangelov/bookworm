@@ -1,59 +1,46 @@
 package net.gangelov.bookworm.classifiers;
 
 import net.gangelov.bookworm.Book;
+import net.gangelov.bookworm.BookTrainSet;
+import net.gangelov.bookworm.words.TfIdf;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class MultinomialNaiveBayes {
-    public final List<String> genres;
-
-    // {genre: number of books}
-    public final Map<String, Integer> genreBookCount = new HashMap<>();
-
-    public int totalBookCount;
-
     // {genre: {word: sum of tfidf}}
-    public final Map<String, Map<String, Double>> genreWordCounts = new HashMap<>();
+    public Map<String, Map<String, Double>> genreWordCounts;
 
-    // {word: number of books containing it}
-    public final Map<String, Integer> wordBookCounts;
+    private final BookTrainSet trainSet;
+    private final TfIdf tfidf;
 
-    public MultinomialNaiveBayes(List<String> genres, Map<String, Integer> wordBookCounts, int totalBookCount) {
-        this.genres = genres;
-        this.wordBookCounts = wordBookCounts;
-        this.totalBookCount = totalBookCount;
+    public MultinomialNaiveBayes(BookTrainSet trainSet) {
+        this.trainSet = trainSet;
+        this.tfidf = new TfIdf(trainSet);
+
+        train();
     }
 
-    public void train(Book book, String genre) throws Exception {
-        // Update genreBookCount
-        genreBookCount.merge(genre, 1, (a, b) -> a + b);
-
-        Map<String, Integer> wordCounts = book.wordCounts();
-        int totalWordsInBook = wordCounts.entrySet().stream().collect(Collectors.summingInt(e -> e.getValue()));
-        Map<String, Double> tfidfWordCounts = wordCounts.entrySet().stream()
-                .collect(
-                        Collectors.toMap(
-                                entry -> entry.getKey(),
-                                entry -> tfidf(entry.getKey(), entry.getValue(), totalWordsInBook)
-                        )
-                );
-
-        genreWordCounts.merge(
-                genre,
-                tfidfWordCounts,
-                MultinomialNaiveBayes::mergeMaps
-        );
+    public void train() {
+        genreWordCounts = trainSet.getGenres().stream()
+            .collect(Collectors.toMap(
+                    genre -> genre,
+                    genre -> wordCountsForGenre(genre)
+            ));
     }
 
-    private double tfidf(String word, int count, int totalWordsInBook) {
-        double tfidf = (double)count / totalWordsInBook;
-
-        tfidf *= Math.log((double)totalBookCount / wordBookCounts.get(word));
-
-        return tfidf;
+    private Map<String, Double> wordCountsForGenre(String genre) {
+         return trainSet.booksForGenre(genre).parallelStream()
+                .map(tfidf::calculate)
+                .flatMap(wordCounts -> wordCounts.entrySet().parallelStream())
+                .collect(Collectors.toConcurrentMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (a, b) -> a + b
+                ));
     }
 
     private static Map<String, Double> mergeMaps(Map<String, Double> map1, final Map<String, Double> map2) {

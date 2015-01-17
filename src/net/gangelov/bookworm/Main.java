@@ -10,6 +10,10 @@ import java.io.*;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class Main {
@@ -20,44 +24,46 @@ public class Main {
 //        readWordBookCounts();
 //        generateWordCountBinFiles();
 //        readWordCountBinFiles();
-        trainClassifier();
+//        trainClassifier();
+        BookTrainSet trainSet = createTrainSet();
+
+        MultinomialNaiveBayes classifier = new MultinomialNaiveBayes(trainSet);
     }
 
-    private static void trainClassifier() throws IOException {
-        Map<String, Integer> wordBookCounts = readWordBookCounts();
-
-        MultinomialNaiveBayes classifier = new MultinomialNaiveBayes(Arrays.asList(genres), wordBookCounts, 1050);
-
-        final File directory = new File("F:\\books");
+    private static BookTrainSet createTrainSet() {
+        final File directory = new File("C:\\books");
         final File[] subdirectories = directory.listFiles(File::isDirectory);
+        BookTrainSet trainSet = new BookTrainSet();
 
         for (File genreDirectory : subdirectories) {
-            trainClassifierFromDirectory(classifier, genreDirectory.getName(), genreDirectory);
+            trainSet = trainSet.addFromDirectory(genreDirectory.getName(), genreDirectory);
         }
 
-        List<Map.Entry<String, Double>> fantasyTopRelevantWords = classifier.genreWordCounts.get("fantasy").entrySet().stream()
-                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
-                .collect(Collectors.toList());
+        return trainSet;
     }
 
-    private static void trainClassifierFromDirectory(MultinomialNaiveBayes classifier, String genre, File directory) {
-        @SuppressWarnings("unchecked")
-        Collection<File> bookFiles = FileUtils.listFiles(
-                directory,
-                new String[] { "epub" },
-                true
-        );
+//        List<Map.Entry<String, Double>> fantasyTopRelevantWords = classifier.genreWordCounts.get("fantasy").entrySet().stream()
+//                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+//                .collect(Collectors.toList());
 
-        bookFiles.forEach((bookFile) -> {
-            System.out.println("Processing " + bookFile.getName());
-
-            try {
-                classifier.train(Book.fromEPUB(bookFile.getAbsolutePath()), genre);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-    }
+//    private static void trainClassifierFromDirectory(MultinomialNaiveBayes classifier, String genre, File directory) {
+//        @SuppressWarnings("unchecked")
+//        Collection<File> bookFiles = FileUtils.listFiles(
+//                directory,
+//                new String[] { "epub" },
+//                true
+//        );
+//
+//        bookFiles.forEach((bookFile) -> {
+//            System.out.println("Processing " + bookFile.getName());
+//
+//            try {
+//                classifier.train(Book.fromEPUB(bookFile.getAbsolutePath()), genre);
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        });
+//    }
 
     private static Map<String, Integer> readWordBookCounts() throws IOException {
         Map<String, Integer> wordBookCounts = WordCountSerializer.deserialize(new BufferedInputStream(
