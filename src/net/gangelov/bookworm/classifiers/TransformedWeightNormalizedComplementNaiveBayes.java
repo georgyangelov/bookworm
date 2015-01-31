@@ -10,17 +10,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class MultinomialNaiveBayes {
+public class TransformedWeightNormalizedComplementNaiveBayes {
     // {genre: {word: sum of tfidf}}
     private Map<String, Map<String, Double>> genreWordCounts;
 
     // {genre: sum of tfidf for all words}
     private Map<String, Double> genreTotalCounts;
 
+    private int totalWordCount;
+
     private final BookTrainSet trainSet;
     private final TfIdf tfidf;
 
-    public MultinomialNaiveBayes(BookTrainSet trainSet) {
+    public TransformedWeightNormalizedComplementNaiveBayes(BookTrainSet trainSet) {
         this.trainSet = trainSet;
         this.tfidf = new TfIdf(trainSet);
 
@@ -46,29 +48,31 @@ public class MultinomialNaiveBayes {
         // P(genre)
         double probabilityOfGenre = (double)trainSet.getBookCountForGenre(genre) / trainSet.getBookCount();
 
-        // P(book|genre) = product { P(word|genre)^(word tfidf in book) }
-        //               ~ sum { log( P(word|genre) )*(word tfidf in book) }
         double bookProbabilityForGenre = book.getWordCounts().keySet().stream()
                 .mapToDouble(
-                        word -> Math.log(probabilityOfWordInGenre(word, genre)) * tfidf.calculate(word, book)
+                        word -> wordWeightOfWordInGenre(word, genre) * tfidf.calculate(word, book)
                 )
                 .sum();
 
-        return probabilityOfGenre * bookProbabilityForGenre;
+        return Math.log(probabilityOfGenre) - bookProbabilityForGenre;
     }
 
-    // P(word|genre)
-    private double probabilityOfWordInGenre(String word, String genre) {
-        //                       1 + (sum of tfidf of word for every book in genre)
-        // P(word|genre) = ----------------------------------------------------------------
-        //                 (num unique words) + (total sum of tfidf for all words in genre)
-        Map<String, Double> wordsInGenre = genreWordCounts.get(genre);
+    private double wordWeightOfWordInGenre(String word, String genre) {
+        //                           1 + (sum of tfidf of word for every book in other genres)
+        // word weight = log ( ------------------------------------------------------------------------- )
+        //                      (num unique words) + (total sum of tfidf for all words in other genres)
+        double tfidfComplementOfWord = genreWordCounts.entrySet().stream()
+                .filter(entry -> !entry.getKey().equals(genre))
+                .mapToDouble(entry -> entry.getValue().getOrDefault(word, 0.0))
+                .sum();
 
-        double tfidfOfWordInGenre = wordsInGenre.getOrDefault(word, 0.0);
-        double tfidfOfAllWordsInGenre = genreTotalCounts.get(genre);
-        double uniqueWordCount = wordsInGenre.size();
+        double tfidfComplementOfAllWordsInGenre = genreTotalCounts.entrySet().stream()
+                .filter(entry -> !entry.getKey().equals(genre))
+                .mapToDouble(entry -> entry.getValue())
+                .sum();
+        double uniqueWordCount = totalWordCount;
 
-        return (1 + tfidfOfWordInGenre) / (uniqueWordCount + tfidfOfAllWordsInGenre);
+        return (1 + tfidfComplementOfWord) / (uniqueWordCount + tfidfComplementOfAllWordsInGenre);
     }
 
     private void train() {
@@ -83,10 +87,12 @@ public class MultinomialNaiveBayes {
                         entry -> entry.getKey(),
                         entry -> entry.getValue().values().stream().reduce(0.0, (a, b) -> a + b)
                 ));
+
+        totalWordCount = totalWordCount();
     }
 
     private Map<String, Double> wordCountsForGenre(String genre) {
-         return trainSet.booksForGenre(genre).parallelStream()
+        return trainSet.booksForGenre(genre).parallelStream()
                 .map(tfidf::calculate)
                 .flatMap(wordCounts -> wordCounts.entrySet().parallelStream())
                 .collect(Collectors.toConcurrentMap(
@@ -94,5 +100,15 @@ public class MultinomialNaiveBayes {
                         Map.Entry::getValue,
                         (a, b) -> a + b
                 ));
+    }
+
+    private int totalWordCount() {
+        return genreWordCounts.entrySet().stream()
+                .flatMap(wordCounts -> wordCounts.getValue().keySet().stream())
+                .collect(Collectors.toMap(
+                        word -> word,
+                        word -> 1,
+                        (a, b) -> 1
+                )).size();
     }
 }

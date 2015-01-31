@@ -11,18 +11,21 @@ import java.util.Map;
 public class Book {
     private final String genre, title;
     private final Map<String, Integer> wordCounts;
+    private final int totalWordCount;
 
     public Book(IBookReader reader) throws Exception {
         this.genre = null;
 
         title = reader.getTitle();
         wordCounts = FrequencyExtractor.extractFrom(reader.getString());
+        totalWordCount = wordCounts.values().stream().mapToInt(Integer::intValue).sum();
     }
     public Book(IBookReader reader, String genre) throws Exception {
         this.genre = genre;
 
         title = reader.getTitle();
         wordCounts = FrequencyExtractor.extractFrom(reader.getString());
+        totalWordCount = wordCounts.values().stream().mapToInt(Integer::intValue).sum();
     }
 
     public String getTitle() {
@@ -35,6 +38,10 @@ public class Book {
 
     public Map<String, Integer> getWordCounts() {
         return wordCounts;
+    }
+
+    public int getTotalWordCount() {
+        return totalWordCount;
     }
 
     public static Book fromEPUB(String path, String genre) throws Exception {

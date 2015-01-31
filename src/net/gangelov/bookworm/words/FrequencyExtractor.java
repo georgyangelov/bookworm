@@ -1,8 +1,10 @@
 package net.gangelov.bookworm.words;
 
+import net.gangelov.bookworm.words.filters.InvalidWordsFilter;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.core.LowerCaseFilter;
+import org.apache.lucene.analysis.core.StopAnalyzer;
 import org.apache.lucene.analysis.core.StopFilter;
 import org.apache.lucene.analysis.en.*;
 import org.apache.lucene.analysis.standard.ClassicAnalyzer;
@@ -20,17 +22,20 @@ public class FrequencyExtractor {
         Map<String, Integer> counts = new HashMap<>();
         Analyzer analyzer = new ClassicAnalyzer(Version.LUCENE_4_9);
         TokenStream tokenStream = //new PorterStemFilter(
+
                 new EnglishMinimalStemFilter(
+                    new EnglishPossessiveFilter(Version.LUCENE_4_9,
+                            new StopFilter(Version.LUCENE_4_9,
+                                new LowerCaseFilter(Version.LUCENE_4_9,
+                                        new InvalidWordsFilter(
+                                        analyzer.tokenStream("content", text)
+                                        )
+                                ),
+                                StopAnalyzer.ENGLISH_STOP_WORDS_SET
+                            )
 
-                new EnglishPossessiveFilter(
-                        Version.LUCENE_4_9,
-                        new LowerCaseFilter(
-                                Version.LUCENE_4_9,
-                                analyzer.tokenStream("content", text)
-                        )
                 )
-
-        );
+                );
         //);
 
         CharTermAttribute term = tokenStream.addAttribute(CharTermAttribute.class);

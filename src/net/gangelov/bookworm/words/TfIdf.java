@@ -19,10 +19,13 @@ public class TfIdf {
 
         assert(booksContainingWordCount > 0);
 
-        double tf = (double)wordCountsInBook.get(word) / wordCountsInBook.size();
+        double tf = 1 + Math.log((double)wordCountsInBook.get(word));
         double idf = Math.log((double)trainSet.getBookCount() / booksContainingWordCount);
 
         return tf * idf;
+//        return (double)book.getWordCounts().getOrDefault(word, 0) / book.getTotalWordCount();
+//        return Math.log(1 + book.getWordCounts().getOrDefault(word, 0));
+//        return book.getWordCounts().getOrDefault(word, 0);
     }
 
     public Map<String, Double> calculate(Book book) {

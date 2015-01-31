@@ -7,6 +7,24 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class BookTrainSet {
+    static class CrossValidationEntry {
+        private final BookTrainSet trainSet;
+        private final List<Book> testSet;
+
+        public CrossValidationEntry(BookTrainSet trainSet, List<Book> testSet) {
+            this.trainSet = trainSet;
+            this.testSet = testSet;
+        }
+
+        public BookTrainSet getTrainSet() {
+            return trainSet;
+        }
+
+        public List<Book> getTestSet() {
+            return testSet;
+        }
+    }
+
     private final List<Book> books;
 
     // {word: number of books containing it}
@@ -29,12 +47,47 @@ public class BookTrainSet {
         genreBookCount = extractGenreBookCount();
     }
 
+    public List<CrossValidationEntry> crossValidation(int folds) {
+        int testSetSize = books.size() / folds;
+        int trainSetSize = books.size() - testSetSize;
+
+        // Shuffle books
+        List<Book> shuffledBooks = new ArrayList<>(books.size());
+        shuffledBooks.addAll(books);
+
+        Collections.shuffle(shuffledBooks);
+
+        List<CrossValidationEntry> crossValidationEntries = new ArrayList<>(folds);
+        for (int i = 0; i < folds; i++) {
+            List<Book> trainSetBooks = new ArrayList<>(trainSetSize);
+            trainSetBooks.addAll(
+                    shuffledBooks.subList(0, i * testSetSize)
+            );
+            trainSetBooks.addAll(
+                    shuffledBooks.subList((i + 1) * testSetSize, shuffledBooks.size())
+            );
+
+            crossValidationEntries.add(
+                    new CrossValidationEntry(
+                            new BookTrainSet(trainSetBooks),
+                            shuffledBooks.subList(i * testSetSize, (i + 1) * testSetSize)
+                    )
+            );
+        }
+
+        return crossValidationEntries;
+    }
+
     public Set<String> getGenres() {
         return genreBookCount.keySet();
     }
 
     public int getBookCount() {
         return books.size();
+    }
+
+    public int getBookCountForGenre(String genre) {
+        return genreBookCount.size();
     }
 
     public int getWordBookCount(String word) {

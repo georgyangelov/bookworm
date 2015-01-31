@@ -27,7 +27,30 @@ public class Main {
 //        trainClassifier();
         BookTrainSet trainSet = createTrainSet();
 
-        MultinomialNaiveBayes classifier = new MultinomialNaiveBayes(trainSet);
+        System.out.println("All books digested");
+
+//        MultinomialNaiveBayes classifier = new MultinomialNaiveBayes(trainSet);
+        crossValidation(10, trainSet);
+    }
+
+    private static void crossValidation(int folds, BookTrainSet trainSet) {
+        int successes = trainSet.crossValidation(folds).stream()
+                .mapToInt(crossValidationEntry -> {
+                    MultinomialNaiveBayes classifier = new MultinomialNaiveBayes(crossValidationEntry.getTrainSet());
+
+                    return (int) crossValidationEntry.getTestSet().parallelStream()
+                            .filter(book -> {
+                                String predictedGenre = classifier.classify(book);
+
+                                return book.getGenre().equals(predictedGenre);
+                            })
+                            .count();
+                })
+                .sum();
+
+        double accuracy = (double)successes / trainSet.getBookCount();
+
+        System.out.println("Accuracy: " + accuracy);
     }
 
     private static BookTrainSet createTrainSet() {
