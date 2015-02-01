@@ -41,8 +41,13 @@ public class Main {
                     return (int) crossValidationEntry.getTestSet().parallelStream()
                             .filter(book -> {
                                 String predictedGenre = classifier.classify(book);
+                                boolean accuratePrediction = book.getGenre().equals(predictedGenre);
 
-                                return book.getGenre().equals(predictedGenre);
+                                if (!accuratePrediction) {
+                                    System.out.println("Incorrectly classified book: " + book.getTitle() + ", " + book.getGenre() + ", " + predictedGenre);
+                                }
+
+                                return accuratePrediction;
                             })
                             .count();
                 })
@@ -54,7 +59,7 @@ public class Main {
     }
 
     private static BookTrainSet createTrainSet() {
-        final File directory = new File("C:\\books");
+        final File directory = new File("C:\\books-rus");
         final File[] subdirectories = directory.listFiles(File::isDirectory);
         BookTrainSet trainSet = new BookTrainSet();
 

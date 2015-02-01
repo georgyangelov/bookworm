@@ -32,7 +32,7 @@ public class TransformedWeightNormalizedComplementNaiveBayes {
     public String classify(Book book) {
         Map<String, Double> weights = classificationWeights(book);
 
-        return weights.entrySet().stream().max((a, b) -> a.getValue().compareTo(b.getValue())).get().getKey();
+        return weights.entrySet().stream().min((a, b) -> a.getValue().compareTo(b.getValue())).get().getKey();
     }
 
     public Map<String, Double> classificationWeights(Book book) {
@@ -54,7 +54,7 @@ public class TransformedWeightNormalizedComplementNaiveBayes {
                 )
                 .sum();
 
-        return Math.log(probabilityOfGenre) - bookProbabilityForGenre;
+        return Math.log(probabilityOfGenre) * bookProbabilityForGenre;
     }
 
     private double wordWeightOfWordInGenre(String word, String genre) {
@@ -70,9 +70,8 @@ public class TransformedWeightNormalizedComplementNaiveBayes {
                 .filter(entry -> !entry.getKey().equals(genre))
                 .mapToDouble(entry -> entry.getValue())
                 .sum();
-        double uniqueWordCount = totalWordCount;
 
-        return (1 + tfidfComplementOfWord) / (uniqueWordCount + tfidfComplementOfAllWordsInGenre);
+        return (1 + tfidfComplementOfWord) / (totalWordCount + tfidfComplementOfAllWordsInGenre);
     }
 
     private void train() {
@@ -84,7 +83,7 @@ public class TransformedWeightNormalizedComplementNaiveBayes {
 
         genreTotalCounts = genreWordCounts.entrySet().stream()
                 .collect(Collectors.toMap(
-                        entry -> entry.getKey(),
+                        Map.Entry::getKey,
                         entry -> entry.getValue().values().stream().reduce(0.0, (a, b) -> a + b)
                 ));
 

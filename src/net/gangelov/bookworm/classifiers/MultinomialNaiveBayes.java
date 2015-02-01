@@ -44,7 +44,7 @@ public class MultinomialNaiveBayes {
     // P(genre|book)
     private double genreProbability(String genre, Book book) {
         // P(genre)
-        double probabilityOfGenre = (double)trainSet.getBookCountForGenre(genre) / trainSet.getBookCount();
+//        double probabilityOfGenre = (double)trainSet.getBookCountForGenre(genre) / trainSet.getBookCount();
 
         // P(book|genre) = product { P(word|genre)^(word tfidf in book) }
         //               ~ sum { log( P(word|genre) )*(word tfidf in book) }
@@ -54,7 +54,7 @@ public class MultinomialNaiveBayes {
                 )
                 .sum();
 
-        return probabilityOfGenre * bookProbabilityForGenre;
+        return bookProbabilityForGenre;
     }
 
     // P(word|genre)
@@ -80,7 +80,7 @@ public class MultinomialNaiveBayes {
 
         genreTotalCounts = genreWordCounts.entrySet().stream()
                 .collect(Collectors.toMap(
-                        entry -> entry.getKey(),
+                        Map.Entry::getKey,
                         entry -> entry.getValue().values().stream().reduce(0.0, (a, b) -> a + b)
                 ));
     }

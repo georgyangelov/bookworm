@@ -1,6 +1,7 @@
 package net.gangelov.bookworm;
 
 import net.gangelov.bookworm.readers.EPUBReader;
+import net.gangelov.bookworm.readers.FB2Reader;
 import net.gangelov.bookworm.words.FrequencyExtractor;
 
 import java.io.BufferedInputStream;
@@ -52,5 +53,15 @@ public class Book {
 
     public static Book fromEPUB(String path) throws Exception {
         return fromEPUB(path, null);
+    }
+
+    public static Book fromFB2(String path, String genre) throws Exception {
+        FB2Reader reader = new FB2Reader(new BufferedInputStream(new FileInputStream(path)));
+
+        return new Book(reader, genre);
+    }
+
+    public static Book fromFB2(String path) throws Exception {
+        return fromFB2(path, null);
     }
 }

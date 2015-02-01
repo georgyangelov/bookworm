@@ -55,7 +55,8 @@ public class BookTrainSet {
         List<Book> shuffledBooks = new ArrayList<>(books.size());
         shuffledBooks.addAll(books);
 
-        Collections.shuffle(shuffledBooks);
+        // TODO: Remove this seed
+        Collections.shuffle(shuffledBooks, new Random(123456));
 
         List<CrossValidationEntry> crossValidationEntries = new ArrayList<>(folds);
         for (int i = 0; i < folds; i++) {
@@ -87,7 +88,7 @@ public class BookTrainSet {
     }
 
     public int getBookCountForGenre(String genre) {
-        return genreBookCount.size();
+        return genreBookCount.get(genre);
     }
 
     public int getWordBookCount(String word) {
@@ -99,13 +100,24 @@ public class BookTrainSet {
     }
 
     public BookTrainSet addFromDirectory(String genre, File directory) {
-        Collection<File> bookFiles = FileUtils.listFiles(directory, new String[]{"epub"}, true);
+        Collection<File> bookFiles = FileUtils.listFiles(directory, new String[]{"epub", "fb2"}, true);
 
         List<Book> newBooks = bookFiles.parallelStream()
                 .map(bookFile -> {
                     try {
                         System.out.println("Reading " + bookFile.getName());
-                        return Book.fromEPUB(bookFile.getAbsolutePath(), genre);
+
+                        String[] nameExtension = bookFile.getName().split("\\.");
+                        String extension = nameExtension[nameExtension.length - 1];
+
+                        if (extension.equalsIgnoreCase("epub")) {
+                            return Book.fromEPUB(bookFile.getAbsolutePath(), genre);
+                        } else if (extension.equalsIgnoreCase("fb2")) {
+                            return Book.fromFB2(bookFile.getAbsolutePath(), genre);
+                        } else {
+                            System.err.println("Unknown file format " + extension);
+                            return null;
+                        }
                     } catch (Exception e) {
                         System.err.println("Cannot read book " + bookFile.getName());
                         return null;
